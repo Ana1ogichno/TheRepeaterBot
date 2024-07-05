@@ -1,7 +1,3 @@
-import sys
-
-sys.path = ["", ".."] + sys.path[1:]
-
 from src.common.logger import LoggerManager
 from src.config.db import DBSessionsManager
 
@@ -38,6 +34,7 @@ async def init_db():
     channel_table_query = """
         CREATE TABLE IF NOT EXISTS telegram.channel (
             sid UUID PRIMARY KEY,
+            id BIGINT NOT NULL,
             name VARCHAR NOT NULL,
             link VARCHAR NOT NULL,
             created_at DATE NOT NULL,
