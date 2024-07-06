@@ -20,7 +20,7 @@ class S3Settings(BaseSettings):
 
     # Bucket Settings
     MEDIA_BUCKET_NAME: str = Field(
-        "default_media_bucket_name", env="S3_MEDIA_BUCKET_NAME"
+        "default_media_bucket_name", alias="S3_MEDIA_BUCKET_NAME"
     )
 
     @field_validator("S3_URL", mode="before")
