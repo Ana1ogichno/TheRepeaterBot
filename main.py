@@ -15,13 +15,17 @@ logger = LoggerManager.get_base_logger()
 
 @client.on(events.NewMessage(chats=ConstList.channel_list))
 async def channels_handler(event):
-    logger.info(f"Receiving message from channel with "
-                f"{event.original_update.message.peer_id.channel_id} sid")
+    logger.info(
+        f"Receiving message from channel with "
+        f"{event.message.peer_id.channel_id} sid"
+    )
 
     logger.info("Uploading data to DB")
-    await UploadData.upload_data_to_psql(event)
+    await UploadData.upload_data_to_psql(event.message)
 
-    await event.original_update.message.download_media()
+    logger.info("Uploading media to S3 storage")
+
+    # await event.message.download_media()
 
 
 logger.info("Start TheRepeaterBot")

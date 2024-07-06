@@ -61,12 +61,9 @@ async def init_db():
             source_channel_sid UUID NOT NULL,
             raw_text VARCHAR NOT NULL,
             processed_text VARCHAR,
-            is_publish BOOLEAN NOT NULL,
-            target_channel_sid UUID NOT NULL,
             created_at DATE NOT NULL,
             updated_at DATE,
-            FOREIGN KEY (source_channel_sid) REFERENCES telegram.channel(sid),
-            FOREIGN KEY (target_channel_sid) REFERENCES telegram.channel(sid)
+            FOREIGN KEY (source_channel_sid) REFERENCES telegram.channel(sid)
         )
         """
 
@@ -80,6 +77,30 @@ async def init_db():
         db_client.commit()
 
     logger.info("End creating 'post' table")
+
+    logger.info("Creating 'publication' table")
+
+    post_table_query = """
+            CREATE TABLE IF NOT EXISTS telegram.publication (
+                sid UUID PRIMARY KEY,
+                target_channel_sid UUID NOT NULL,
+                post_sid UUID NOT NULL,
+                created_at DATE NOT NULL,
+                FOREIGN KEY (target_channel_sid) REFERENCES telegram.channel(sid),
+                FOREIGN KEY (post_sid) REFERENCES telegram.post(sid)
+            )
+            """
+
+    with db_client.cursor() as cursor:
+        try:
+            cursor.execute(post_table_query)
+        except Exception as e:
+            logger.error(f"{e}")
+            db_client.rollback()
+
+        db_client.commit()
+
+    logger.info("End creating 'publication' table")
 
     logger.info("Creating 'media' table")
 
