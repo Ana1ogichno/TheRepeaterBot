@@ -1,4 +1,5 @@
 import os
+import shutil
 
 from pypika import Query, Schema, Table, Column
 from uuid import uuid4, UUID
@@ -24,9 +25,36 @@ class UploadData:
             psql_logger.info("Channel with this sid not found")
             return None
 
+        db_client = DBSessionsManager.pg_client
+
         if not data.message and data.grouped_id:
-            psql_logger.info(f"This message with media for group_id {data.grouped_id}")
-            return None
+            telegram_schema = Schema("telegram")
+            post_table = Table("post")
+            sid = Column("sid")
+
+            get_post_query = (
+                Query()
+                .from_(telegram_schema.post)
+                .select(sid)
+                .where(post_table.grouped_id == data.grouped_id)
+                .get_sql()
+            )
+
+            with db_client.cursor() as cursor:
+                try:
+                    cursor.execute(get_post_query)
+                    post = cursor.fetchall()
+                    if post[0][0]:
+                        psql_logger.info(
+                            f"This message with media for group_id {data.grouped_id}"
+                        )
+                        return post[0][0]
+
+                except Exception as e:
+                    psql_logger.error(f"{e}")
+                    db_client.rollback()
+
+                db_client.commit()
 
         if not data.message:
             data.message = None
@@ -43,7 +71,7 @@ class UploadData:
         psql_logger.info("Upload data to DB")
 
         query = (
-            Query.into(telegram_schema.post_table)
+            Query.into(telegram_schema.post)
             .columns(
                 post_table.sid,
                 post_table.source_channel_sid,
@@ -54,8 +82,6 @@ class UploadData:
             .insert(value)
             .get_sql()
         )
-
-        db_client = DBSessionsManager.pg_client
 
         with db_client.cursor() as cursor:
             try:
@@ -70,36 +96,17 @@ class UploadData:
 
     @staticmethod
     async def upload_media(data, post_sid: UUID):
+        # s3_client = DBSessionsManager.s3_client
+
+        # print(data.media.photo.sizes[0].bytes)
+        #
+        # s3_client.upload_fileobj(data.media.photo.sizes[0].bytes, "media", "asdf.jpg")
+
         db_client = DBSessionsManager.pg_client
 
         if data.media is None:
             logger.info("No media provided")
             return None
-
-        if post_sid is None:
-            telegram_schema = Schema("telegram")
-            post_table = Table("post")
-            sid = Column("sid")
-
-            get_post_query = (
-                Query()
-                .from_(telegram_schema.post_table)
-                .select(sid)
-                .where(post_table.grouped_id == data.grouped_id)
-                .get_sql()
-            )
-
-            with db_client.cursor() as cursor:
-                try:
-                    cursor.execute(get_post_query)
-                    data = cursor.fetchall()
-                    post_sid = data[0]
-
-                except Exception as e:
-                    psql_logger.error(f"{e}")
-                    db_client.rollback()
-
-                db_client.commit()
 
         logger.info("Downloading media")
 
@@ -112,7 +119,7 @@ class UploadData:
 
         media = os.listdir(directory)
 
-        filename = str(uuid4()) + f"{media[0].split(".")[-1]}"
+        filename = str(uuid4()) + f".{media[0].split(".")[-1]}"
 
         path = f"{post_sid}/{filename}"
 
@@ -132,7 +139,7 @@ class UploadData:
         value = (uuid4(), post_sid, path, data.date)
 
         query = (
-            Query.into(telegram_schema.media_table)
+            Query.into(telegram_schema.media)
             .columns(
                 media_table.sid,
                 media_table.post_sid,
@@ -151,3 +158,5 @@ class UploadData:
                 db_client.rollback()
 
             db_client.commit()
+
+        shutil.rmtree(directory)
