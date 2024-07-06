@@ -23,7 +23,8 @@ class ProjectSettings(BaseSettings):
         if isinstance(v, str):
             return v
 
-        return (
-            f"{values.data.get('API_ID')}:"
-            f"{values.data.get('API_HASH')}"
-        )
+        return f"{values.data.get('API_ID')}:" f"{values.data.get('API_HASH')}"
+
+    # Media
+
+    # PATH_TO_MEDIA_DIRECTORY: str = "C:\Projects\TheRepeaterBot\TheRepeaterBot-Consumer\src\modules\data_upload\media"

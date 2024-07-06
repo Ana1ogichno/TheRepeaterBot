@@ -19,8 +19,9 @@ class S3Settings(BaseSettings):
     S3_URL: str | None = None
 
     # Bucket Settings
-    MEDIA_BUCKET_NAME: str = Field("default_media_bucket_name", env="MEDIA_BUCKET_NAME")
-    GRAPH_BUCKET_NAME: str = Field("graphs", env="GRAPH_BUCKET_NAME")
+    MEDIA_BUCKET_NAME: str = Field(
+        "default_media_bucket_name", env="S3_MEDIA_BUCKET_NAME"
+    )
 
     @field_validator("S3_URL", mode="before")
     def s3_url(cls, v: str | None, values: ValidationInfo) -> str:

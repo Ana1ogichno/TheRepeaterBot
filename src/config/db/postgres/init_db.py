@@ -59,8 +59,9 @@ async def init_db():
         CREATE TABLE IF NOT EXISTS telegram.post (
             sid UUID PRIMARY KEY,
             source_channel_sid UUID NOT NULL,
-            raw_text VARCHAR NOT NULL,
+            raw_text VARCHAR,
             processed_text VARCHAR,
+            grouped_id BIGINT,
             created_at DATE NOT NULL,
             updated_at DATE,
             FOREIGN KEY (source_channel_sid) REFERENCES telegram.channel(sid)

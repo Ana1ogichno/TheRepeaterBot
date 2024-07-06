@@ -18,15 +18,12 @@ async def check_exist_channel(channel_id: int):
         .where(channel.id == channel_id)
         .get_sql()
     )
-    print(query)
-
     db_client = DBSessionsManager.pg_client
 
     with db_client.cursor() as cursor:
         try:
             cursor.execute(query)
             data = cursor.fetchall()
-            print(data)
             if data:
                 return data[0][0]
 

@@ -21,11 +21,11 @@ async def channels_handler(event):
     )
 
     logger.info("Uploading data to DB")
-    await UploadData.upload_data_to_psql(event.message)
+    post_sid = await UploadData.upload_data_to_psql(event.message)
 
     logger.info("Uploading media to S3 storage")
 
-    # await event.message.download_media()
+    await UploadData.upload_media(event.message, post_sid=post_sid)
 
 
 logger.info("Start TheRepeaterBot")

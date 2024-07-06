@@ -15,6 +15,11 @@ class LoggerManager:
     __psql_log_level: str = settings.logger_settings.POSTGRES_LOGGER_LEVEL
     __psql_log_format: str = settings.logger_settings.POSTGRES_LOGGER_FORMAT
 
+    # S3 logger
+    __s3_log_name: str = settings.logger_settings.POSTGRES_LOGGER_NAME
+    __s3_log_level: str = settings.logger_settings.POSTGRES_LOGGER_LEVEL
+    __s3_log_format: str = settings.logger_settings.POSTGRES_LOGGER_FORMAT
+
     @staticmethod
     def __configure_logger(logger: logging.Logger, level: str, format_str: str) -> None:
         logger.setLevel(level)
@@ -50,4 +55,12 @@ class LoggerManager:
             name=cls.__psql_log_name,
             level=cls.__psql_log_level,
             format_str=cls.__psql_log_format,
+        )
+
+    @classmethod
+    def get_s3_logger(cls) -> logging.Logger:
+        return cls.__get_logger(
+            name=cls.__s3_log_name,
+            level=cls.__s3_log_level,
+            format_str=cls.__s3_log_format,
         )
