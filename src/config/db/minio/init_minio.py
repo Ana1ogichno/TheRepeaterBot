@@ -14,7 +14,6 @@ async def init_s3() -> None:
 
     buckets = [settings.s3.MEDIA_BUCKET_NAME]
     response = s3_client.list_buckets()
-    print(response)
     for bucket in buckets:
         need_create = True
         for exist_bucket in response["Buckets"]:

@@ -1,162 +1,156 @@
 import os
 import shutil
 
-from pypika import Query, Schema, Table, Column
+from pypika import Query, Schema, Table
 from uuid import uuid4, UUID
 
 from src.common.logger import LoggerManager
-from src.config.settings import settings
-from .utils import check_exist_channel
-from ...config.db import DBSessionsManager
-
-logger = LoggerManager.get_base_logger()
-psql_logger = LoggerManager.get_psql_logger()
-s3_logger = LoggerManager.get_s3_logger()
+from .utils import DataUploadUtils
+from ...common.consts import SchemasEnum, TelegramTablesEnum, DataUploadStatusEnum
+from ...config.settings import settings
 
 
 class UploadData:
-    @staticmethod
-    async def upload_data_to_psql(data):
-        psql_logger.info("Check existing channel in DB")
+    def __init__(self):
+        self._data_upload_utils = DataUploadUtils()
+        self._logger = LoggerManager.get_base_logger()
+        self._psql_logger = LoggerManager.get_psql_logger()
+        self._s3_logger = LoggerManager.get_s3_logger()
 
-        source_channel_sid = await check_exist_channel(data.peer_id.channel_id)
+    async def upload_data_to_psql(self, message):
+        # Variable for sqlquery builder
+        telegram_schema = Schema(SchemasEnum.TELEGRAM.value)
+        channel_table = Table(TelegramTablesEnum.CHANNEL.value)
+        post_table = Table(TelegramTablesEnum.POST.value)
+        all_columns = "*"
 
-        if not source_channel_sid:
-            psql_logger.info("Channel with this sid not found")
-            return None
+        self._logger.info("Check existing channel in DB")
 
-        db_client = DBSessionsManager.pg_client
-
-        if not data.message and data.grouped_id:
-            telegram_schema = Schema("telegram")
-            post_table = Table("post")
-            sid = Column("sid")
-
-            get_post_query = (
+        source_channel = await self._data_upload_utils.execute_query_with_result(
+            query=(
                 Query()
-                .from_(telegram_schema.post)
-                .select(sid)
-                .where(post_table.grouped_id == data.grouped_id)
+                .from_(telegram_schema.channel)
+                .select(all_columns)
+                .where(channel_table.id == message.peer_id.channel_id)
                 .get_sql()
             )
-
-            with db_client.cursor() as cursor:
-                try:
-                    cursor.execute(get_post_query)
-                    post = cursor.fetchall()
-                    if post[0][0]:
-                        psql_logger.info(
-                            f"This message with media for group_id {data.grouped_id}"
-                        )
-                        return post[0][0]
-
-                except Exception as e:
-                    psql_logger.error(f"{e}")
-                    db_client.rollback()
-
-                db_client.commit()
-
-        if not data.message:
-            data.message = None
-
-        sid = uuid4()
-
-        psql_logger.info("Extracting data for upload to DB")
-
-        value = (sid, source_channel_sid, data.message, data.grouped_id, data.date)
-
-        telegram_schema = Schema("telegram")
-        post_table = Table("post")
-
-        psql_logger.info("Upload data to DB")
-
-        query = (
-            Query.into(telegram_schema.post)
-            .columns(
-                post_table.sid,
-                post_table.source_channel_sid,
-                post_table.raw_text,
-                post_table.grouped_id,
-                post_table.created_at,
-            )
-            .insert(value)
-            .get_sql()
         )
 
-        with db_client.cursor() as cursor:
-            try:
-                cursor.execute(query)
-            except Exception as e:
-                psql_logger.error(f"{e}")
-                db_client.rollback()
+        if not source_channel:
+            self._psql_logger.info(
+                f"Channel with id = {message.peer_id.channel_id} not found"
+            )
+            return DataUploadStatusEnum.NO_CHANNEL
 
-            db_client.commit()
+        if not message.message and message.grouped_id:
+            self._logger.info(
+                f"Check existing post with grouped_id = {message.grouped_id}"
+            )
+
+            post = await self._data_upload_utils.execute_query_with_result(
+                query=(
+                    Query()
+                    .from_(telegram_schema.post)
+                    .select(all_columns)
+                    .where(post_table.grouped_id == message.grouped_id)
+                    .get_sql()
+                )
+            )
+
+            if post:
+                self._psql_logger.info(
+                    f"This message with media for group_id = {message.grouped_id}"
+                )
+                return post[0][0]
+
+        if not message.message:
+            message.message = None
+
+        self._logger.info("Extracting data for upload to DB")
+
+        sid = uuid4()
+        value = (
+            sid,
+            source_channel[0][0],
+            message.message,
+            message.grouped_id,
+            message.date,
+        )
+
+        self._psql_logger.info("Upload data to DB")
+
+        await self._data_upload_utils.execute_query(
+            query=(
+                Query.into(telegram_schema.post)
+                .columns(
+                    post_table.sid,
+                    post_table.source_channel_sid,
+                    post_table.raw_text,
+                    post_table.grouped_id,
+                    post_table.created_at,
+                )
+                .insert(value)
+                .get_sql()
+            )
+        )
 
         return sid
 
-    @staticmethod
-    async def upload_media(data, post_sid: UUID):
+    async def upload_media(self, message, post_sid: UUID):
         # s3_client = DBSessionsManager.s3_client
 
         # print(data.media.photo.sizes[0].bytes)
         #
         # s3_client.upload_fileobj(data.media.photo.sizes[0].bytes, "media", "asdf.jpg")
 
-        db_client = DBSessionsManager.pg_client
-
-        if data.media is None:
-            logger.info("No media provided")
-            return None
-
-        logger.info("Downloading media")
-
-        dir_name = f"media_{uuid4()}"
-
-        directory = f"src/modules/data_upload/media/{dir_name}"
-        os.mkdir(directory)
-
-        await data.download_media(file=directory)
-
-        media = os.listdir(directory)
-
-        filename = str(uuid4()) + f".{media[0].split(".")[-1]}"
-
-        path = f"{post_sid}/{filename}"
-
-        s3_logger.info("Upload file")
-
-        s3_client = DBSessionsManager.s3_client
-
-        s3_client.upload_file(
-            f"{directory}/{media[0]}", settings.s3.MEDIA_BUCKET_NAME, path
-        )
-
-        logger.info("Create record in media table")
-
+        # Variable for sqlquery builder
         telegram_schema = Schema("telegram")
         media_table = Table("media")
 
-        value = (uuid4(), post_sid, path, data.date)
+        if message.media is None:
+            self._logger.info("Message contains no media")
+            return None
 
-        query = (
-            Query.into(telegram_schema.media)
-            .columns(
-                media_table.sid,
-                media_table.post_sid,
-                media_table.path,
-                media_table.created_at,
-            )
-            .insert(value)
-            .get_sql()
+        self._logger.info("Creating directory for download media")
+        dir_name = f"{uuid4()}"
+        directory = f"src/modules/data_upload/media/{dir_name}"
+        os.mkdir(directory)
+
+        self._logger.info(f"Downloading media in '{dir_name}' directory")
+
+        await message.download_media(file=directory)
+
+        self._logger.info("Preparing for upload media to S3 storage")
+        media = os.listdir(directory)
+        filename = str(uuid4()) + f".{media[0].split(".")[-1]}"
+        path = f"{post_sid}/{filename}"
+
+        self._s3_logger.info("Upload media to S3 storage")
+
+        await self._data_upload_utils.upload_to_s3(
+            path_to_file=f"{directory}/{media[0]}",
+            bucket=settings.s3.MEDIA_BUCKET_NAME,
+            path_in_s3=path,
         )
 
-        with db_client.cursor() as cursor:
-            try:
-                cursor.execute(query)
-            except Exception as e:
-                psql_logger.error(f"{e}")
-                db_client.rollback()
+        self._psql_logger.info("Create record in 'media' table")
 
-            db_client.commit()
+        value = (uuid4(), post_sid, path, message.date)
+
+        await self._data_upload_utils.execute_query(
+            query=(
+                Query.into(telegram_schema.media)
+                .columns(
+                    media_table.sid,
+                    media_table.post_sid,
+                    media_table.path,
+                    media_table.created_at,
+                )
+                .insert(value)
+                .get_sql()
+            )
+        )
+
+        self._logger.info("Removing media")
 
         shutil.rmtree(directory)

@@ -37,7 +37,7 @@ async def init_db():
             id BIGINT NOT NULL,
             name VARCHAR NOT NULL,
             link VARCHAR NOT NULL,
-            created_at DATE NOT NULL,
+            created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
             is_source BOOLEAN NOT NULL
         )
     """
@@ -62,8 +62,8 @@ async def init_db():
             raw_text VARCHAR,
             processed_text VARCHAR,
             grouped_id BIGINT,
-            created_at DATE NOT NULL,
-            updated_at DATE,
+            created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+            updated_at TIMESTAMP WITHOUT TIME ZONE,
             FOREIGN KEY (source_channel_sid) REFERENCES telegram.channel(sid)
         )
         """
@@ -86,7 +86,7 @@ async def init_db():
                 sid UUID PRIMARY KEY,
                 target_channel_sid UUID NOT NULL,
                 post_sid UUID NOT NULL,
-                created_at DATE NOT NULL,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
                 FOREIGN KEY (target_channel_sid) REFERENCES telegram.channel(sid),
                 FOREIGN KEY (post_sid) REFERENCES telegram.post(sid)
             )
@@ -110,8 +110,8 @@ async def init_db():
                 sid UUID PRIMARY KEY,
                 post_sid UUID NOT NULL,
                 path VARCHAR NOT NULL,
-                created_at DATE NOT NULL,
-                updated_at DATE,
+                created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                updated_at TIMESTAMP WITHOUT TIME ZONE,
                 FOREIGN KEY (post_sid) REFERENCES telegram.post(sid)
             )
             """
@@ -135,8 +135,8 @@ async def init_db():
                     name VARCHAR NOT NULL,
                     id VARCHAR NOT NULL,
                     link VARCHAR NOT NULL,
-                    created_at DATE NOT NULL,
-                    updated_at DATE
+                    created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+                    updated_at TIMESTAMP WITHOUT TIME ZONE
                 )
                 """
 
