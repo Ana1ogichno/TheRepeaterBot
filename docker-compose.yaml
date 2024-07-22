@@ -4,6 +4,20 @@ volumes:
   postgres-data:
 
 services:
+  repeater_bot:
+    container_name: repeater_bot
+    env_file: .env
+    build:
+      dockerfile: Dockerfile
+    restart: on-failure
+    command: python3 main.py
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - repeater_bot_network
+
+
   postgres:
     container_name: postgres_bot
     image: postgres:15
