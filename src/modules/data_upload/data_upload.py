@@ -3,7 +3,7 @@ import shutil
 
 from pypika import Query, Schema, Table
 from uuid import uuid4, UUID
-
+from src.common import logging_call
 from src.common.logger import LoggerManager
 from .utils import DataUploadUtils
 from ...common.consts import SchemasEnum, TelegramTablesEnum, DataUploadStatusEnum
@@ -17,6 +17,7 @@ class UploadData:
         self._psql_logger = LoggerManager.get_psql_logger()
         self._s3_logger = LoggerManager.get_s3_logger()
 
+    @logging_call()
     async def upload_data_to_psql(self, message):
         # Variable for sqlquery builder
         telegram_schema = Schema(SchemasEnum.TELEGRAM.value)
@@ -96,6 +97,7 @@ class UploadData:
 
         return sid
 
+    @logging_call()
     async def upload_media(self, message, post_sid: UUID):
         # s3_client = DBSessionsManager.s3_client
 
