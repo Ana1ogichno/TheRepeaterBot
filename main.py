@@ -10,7 +10,7 @@ from src.modules.data_upload import UploadData
 logger = LoggerManager.get_base_logger()
 
 
-@client.on(events.NewMessage(chats=ConstList.channel_list))
+@client.on(events.NewMessage(chats=ConstList.CHANNEL_LIST))
 async def channels_handler(event):
     upload_data_module = UploadData()
     logger.info(
@@ -18,7 +18,7 @@ async def channels_handler(event):
     )
     logger.info(
         f"Receiving message from channel with "
-        f"{event.message.peer_id.channel_id} sid"
+        f"{event.message.peer_id.channel_id} id"
     )
 
     logger.info("Uploading data to DB")
