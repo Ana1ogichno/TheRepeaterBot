@@ -6,6 +6,7 @@ logger = LoggerManager.get_base_logger()
 
 def logging_call(description: str = None):
     """Декоратор для логирования вызова функций"""
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
