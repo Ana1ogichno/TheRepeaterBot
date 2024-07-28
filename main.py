@@ -17,11 +17,10 @@ async def channels_handler(event):
         "# -======================== START PROCESSING MESSAGE ========================- # \n"
     )
     logger.info(
-        f"Receiving message from channel with "
-        f"{event.message.peer_id.channel_id} id"
+        f"Receiving message from channel with " f"{event.message.peer_id.channel_id} id"
     )
 
-    logger.info("Uploading data to DB")
+    logger.info(f"<id={event.message.peer_id.channel_id}> - Uploading data to DB")
     post_sid = await upload_data_module.upload_data_to_psql(event.message)
 
     if post_sid is DataUploadStatusEnum.NO_CHANNEL:
@@ -30,7 +29,9 @@ async def channels_handler(event):
         )
         return None
 
-    logger.info("Uploading media to S3 storage")
+    logger.info(
+        f"<id={event.message.peer_id.channel_id}> - Uploading media to S3 storage"
+    )
 
     await upload_data_module.upload_media(event.message, post_sid=post_sid)
 
