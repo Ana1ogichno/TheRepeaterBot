@@ -99,12 +99,6 @@ class UploadData:
 
     @logging_call()
     async def upload_media(self, message, post_sid: UUID):
-        # s3_client = DBSessionsManager.s3_client
-
-        # print(data.media.photo.sizes[0].bytes)
-        #
-        # s3_client.upload_fileobj(data.media.photo.sizes[0].bytes, "media", "asdf.jpg")
-
         # Variable for sqlquery builder
         telegram_schema = Schema("telegram")
         media_table = Table("media")
@@ -115,7 +109,7 @@ class UploadData:
 
         self._logger.info("Creating directory for download media")
         dir_name = f"{uuid4()}"
-        directory = f"src/modules/data_upload/media/{dir_name}"
+        directory = f"src/modules/data_upload/tmp_media/{dir_name}"
         os.mkdir(directory)
 
         self._logger.info(f"Downloading media in '{dir_name}' directory")
