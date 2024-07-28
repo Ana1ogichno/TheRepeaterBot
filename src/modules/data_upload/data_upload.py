@@ -25,7 +25,9 @@ class UploadData:
         post_table = Table(TelegramTablesEnum.POST.value)
         all_columns = "*"
 
-        self._logger.info("Check existing channel in DB")
+        self._logger.info(
+            f"<id={message.peer_id.channel_id}> - Check existing channel in DB"
+        )
 
         source_channel = await self._data_upload_utils.execute_query_with_result(
             query=(
@@ -45,7 +47,7 @@ class UploadData:
 
         if not message.message and message.grouped_id:
             self._logger.info(
-                f"Check existing post with grouped_id = {message.grouped_id}"
+                f"<id={message.peer_id.channel_id}> - Check existing post with grouped_id = {message.grouped_id}"
             )
 
             post = await self._data_upload_utils.execute_query_with_result(
@@ -60,14 +62,16 @@ class UploadData:
 
             if post:
                 self._psql_logger.info(
-                    f"This message with media for group_id = {message.grouped_id}"
+                    f"<id={message.peer_id.channel_id}> - This message with media for group_id = {message.grouped_id}"
                 )
                 return post[0][0]
 
         if not message.message:
             message.message = None
 
-        self._logger.info("Extracting data for upload to DB")
+        self._logger.info(
+            f"<id={message.peer_id.channel_id}> - Extracting data for upload to DB"
+        )
 
         sid = uuid4()
         value = (
@@ -78,7 +82,7 @@ class UploadData:
             message.date,
         )
 
-        self._psql_logger.info("Upload data to DB")
+        self._psql_logger.info(f"<id={message.peer_id.channel_id}> - Upload data to DB")
 
         await self._data_upload_utils.execute_query(
             query=(
@@ -104,24 +108,34 @@ class UploadData:
         media_table = Table("media")
 
         if message.media is None:
-            self._logger.info("Message contains no media")
+            self._logger.info(
+                f"<id={message.peer_id.channel_id}> - Message contains no media"
+            )
             return None
 
-        self._logger.info("Creating directory for download media")
+        self._logger.info(
+            f"<id={message.peer_id.channel_id}> - Creating directory for download media"
+        )
         dir_name = f"{uuid4()}"
         directory = f"src/modules/data_upload/tmp_media/{dir_name}"
         os.mkdir(directory)
 
-        self._logger.info(f"Downloading media in '{dir_name}' directory")
+        self._logger.info(
+            f"<id={message.peer_id.channel_id}> - Downloading media in '{dir_name}' directory"
+        )
 
         await message.download_media(file=directory)
 
-        self._logger.info("Preparing for upload media to S3 storage")
+        self._logger.info(
+            f"<id={message.peer_id.channel_id}> - Preparing for upload media to S3 storage"
+        )
         media = os.listdir(directory)
         filename = str(uuid4()) + f".{media[0].split(".")[-1]}"
         path = f"{post_sid}/{filename}"
 
-        self._s3_logger.info("Upload media to S3 storage")
+        self._s3_logger.info(
+            f"<id={message.peer_id.channel_id}> - Upload media to S3 storage"
+        )
 
         await self._data_upload_utils.upload_to_s3(
             path_to_file=f"{directory}/{media[0]}",
@@ -129,7 +143,9 @@ class UploadData:
             path_in_s3=path,
         )
 
-        self._psql_logger.info("Create record in 'media' table")
+        self._psql_logger.info(
+            f"<id={message.peer_id.channel_id}> - Create record in 'media' table"
+        )
 
         value = (uuid4(), post_sid, path, message.date)
 
@@ -147,6 +163,6 @@ class UploadData:
             )
         )
 
-        self._logger.info("Removing media")
+        self._logger.info(f"<id={message.peer_id.channel_id}> - Removing media")
 
         shutil.rmtree(directory)
